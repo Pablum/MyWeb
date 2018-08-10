@@ -9,7 +9,7 @@ async def create_pool(loop, **kw):
 	logging.info('create database connection pool...')
 	global __pool
 	__pool = await aiomysql.create_pool(
-			host = kw.get('host', 'localhost')，#get(关键字参数，默认值)设置主机为本机
+			host = kw.get('host', 'localhost'),#get(关键字参数，默认值)设置主机为本机
 			port = kw.get('port', 3306),#设置端口为3306
 			user = kw['user'],#数据库账户
 			password = kw['password'],#账户密码
@@ -21,6 +21,12 @@ async def create_pool(loop, **kw):
 			loop = loop #传递循环实例，默认使用asyncio.get_event_loop()
 			)
 
+async def destroy_pool():
+	global __pool
+	if __pool is not None:
+		__pool.close()
+		await __pool.wait_closed()
+		
 async def select(sql, args, size = None):
 	'实现SQL中SELECT操作，传入参数分别为SQL语句，占位符参数集，并返回操作的行数'
 	log(sql, args)#调用log()记录SQL操作
@@ -41,7 +47,7 @@ async def execute(sql, args, autocommit = True):
 	log(sql, args)
 	async with __pool.acquire() as conn:#获取一个连接
 		if not autocommit:#如果没有自动提交事务，则启动协程，尝试SQL操作并提交事务
-			await conn.begin():
+			await conn.begin()
 		try:
 			async with conn.cursor(aiomysql.DictCursor) as cur:#为连接创建游标，并返回dict组成的list，用完自动释放
 				await cur.execute(sql.replace('?', '%s'), args)#执行SQL操作，SQL语句的占位符是？，MYSQL占位符为%s,先替换为MYSQL占位符
